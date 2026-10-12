@@ -24,22 +24,136 @@ def setting(key, default=None):
         return os.getenv(key, default)
 
 
-EVENT_NAME = setting('EVENT_NAME', 'Business Analytics Workshop')
-EVENT_DATE = setting('EVENT_DATE', 'November 14, 2026 · 10:00 AM')
-EVENT_VENUE = setting('EVENT_VENUE', 'New York City')
-CAPACITY = max(1, int(setting('EVENT_CAPACITY', '100')))
+EVENT_NAME = setting('EVENT_NAME', 'Indonesia Unplugged 2.0')
+EVENT_DATE = setting('EVENT_DATE', 'November 20, 2026 · 10:00 AM')
+EVENT_VENUE = setting('EVENT_VENUE', 'Lerner Hall, Columbia University')
+CAPACITY = max(1, int(setting('EVENT_CAPACITY', '300')))
 DB_PATH = setting('EVENT_DB_PATH', 'event.db')
 ADMIN_PASSWORD = setting('ADMIN_PASSWORD', '')
 GMAIL_ADDRESS = setting('GMAIL_ADDRESS', '')
 GMAIL_APP_PASSWORD = setting('GMAIL_APP_PASSWORD', '')
 
 st.set_page_config(page_title=EVENT_NAME, page_icon='🎟️', layout='wide')
-st.markdown('''<style>
-.stApp {background: #f6f8fc;}
-h1,h2,h3 {color:#132744;}
-[data-testid="stMetric"] {background:white; padding:14px; border-radius:12px; border:1px solid #e2e8f0;}
-div.stButton > button[kind="primary"] {background:#255edb; border-radius:10px;}
-</style>''', unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+/* Light appearance, including dark-mode browsers */
+:root {
+    color-scheme: light;
+}
+
+html, body, .stApp,
+[data-testid="stAppViewContainer"] {
+    color-scheme: light !important;
+    color: #17324D !important;
+    background:
+        radial-gradient(
+            ellipse at 10% 12%,
+            rgba(144, 197, 233, 0.38),
+            transparent 55%
+        ),
+        radial-gradient(
+            ellipse at 90% 28%,
+            rgba(194, 225, 246, 0.48),
+            transparent 60%
+        ),
+        radial-gradient(
+            ellipse at 25% 85%,
+            rgba(164, 211, 239, 0.28),
+            transparent 58%
+        ),
+        linear-gradient(
+            135deg,
+            #FFFFFF 0%,
+            #EDF7FF 50%,
+            #FFFFFF 100%
+        ) !important;
+}
+
+/* Transparent header */
+[data-testid="stHeader"] {
+    background: transparent !important;
+}
+
+/* Main text */
+[data-testid="stAppViewContainer"] h1,
+[data-testid="stAppViewContainer"] h2,
+[data-testid="stAppViewContainer"] h3,
+[data-testid="stAppViewContainer"] p,
+[data-testid="stAppViewContainer"] label {
+    color: #17324D !important;
+}
+
+/* Headings */
+h1, h2, h3 {
+    font-family: Georgia, serif !important;
+    letter-spacing: -0.5px;
+}
+
+h1 {
+    font-size: 2.7rem !important;
+    font-weight: 700 !important;
+}
+
+/* Registration form */
+[data-testid="stForm"] {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid #D2E5F3;
+    border-radius: 20px;
+    padding: 25px;
+    box-shadow: 0 8px 30px rgba(60, 110, 150, 0.08);
+}
+
+/* Input fields */
+[data-testid="stTextInput"] input {
+    background: #FFFFFF !important;
+    color: #17324D !important;
+    border: 1px solid #BCD6E8 !important;
+    border-radius: 10px !important;
+}
+
+[data-testid="stTextInput"] input::placeholder {
+    color: #607D92 !important;
+}
+
+/* Buttons */
+div.stButton > button[kind="primary"],
+div.stFormSubmitButton > button[kind="primary"] {
+    background: #397DAA !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 12px !important;
+    padding: 10px 24px !important;
+    font-weight: 600 !important;
+}
+
+div.stButton > button[kind="primary"]:hover,
+div.stFormSubmitButton > button[kind="primary"]:hover {
+    background: #245C83 !important;
+    color: #FFFFFF !important;
+}
+
+/* Metrics and dashboard */
+[data-testid="stMetric"] {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 16px;
+    border-radius: 14px;
+    border: 1px solid #D2E5F3;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    h1 {
+        font-size: 2rem !important;
+    }
+
+    [data-testid="stForm"] {
+        padding: 15px;
+    }
+}
+</style>
+""", unsafe_allow_html=True)
+  
 
 
 def connection():
@@ -188,6 +302,24 @@ if page not in ('register', 'admin'):
 if page == 'register':
     st.caption('EVENT REGISTRATION PORTAL')
     st.title(f'🎟️ {EVENT_NAME}')
+
+    st.markdown("""
+    ### Experience Indonesia Beyond the Ordinary
+    
+    Join us for **Indonesia Unplugged 2.0**, a celebration
+    of Indonesian culture, community, and connection.
+    
+    📅 **Date:** November 20, 2026
+    
+    📍 **Venue:** Lerner Hall, Columbia University
+    
+    👥 **Capacity:** 300 participants
+    
+    We look forward to welcoming you!
+    
+    Please complete the registration form below
+    to reserve your spot.
+    """)
     st.write(f'📅 {EVENT_DATE}  ·  📍 {EVENT_VENUE}')
     status_counts = counts()
     confirmed = status_counts.get('confirmed', 0)
