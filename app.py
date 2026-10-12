@@ -309,12 +309,6 @@ if page == 'register':
     Join us for **Indonesia Unplugged 2.0**, a celebration
     of Indonesian culture, community, and connection.
     
-    📅 **Date:** November 20, 2026
-    
-    📍 **Venue:** Lerner Hall, Columbia University
-    
-    👥 **Capacity:** 300 participants
-    
     We look forward to welcoming you!
     
     Please complete the registration form below
