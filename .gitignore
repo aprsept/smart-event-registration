@@ -1,0 +1,19 @@
+# Gmail credentials and application secrets
+.streamlit/secrets.toml
+.env
+
+# Python virtual environment
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local database
+*.db
+*.sqlite
+*.sqlite3
+
+# Mac system files
+.DS_Store
