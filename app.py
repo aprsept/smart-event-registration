@@ -358,23 +358,30 @@ if page == 'register':
     to reserve your spot.
     """)
     st.write(f'📅 {EVENT_DATE}  ·  📍 {EVENT_VENUE}')
+    # Public page: do not reveal nationality-specific quotas or seat counts.
+    # The database still enforces both category limits on submission.
     status_counts = counts()
     confirmed = status_counts.get('confirmed', 0)
-    st.progress(min(confirmed / CAPACITY, 1.0), text=f'{confirmed}/{CAPACITY} confirmed seats')
     group_counts = category_counts()
-    st.subheader('Registration availability')
-    for group, limit in SEGMENT_CAPACITY.items():
-        taken = group_counts.get((group, 'confirmed'), 0)
-        remaining = max(0, min(limit - taken, CAPACITY - confirmed))
-        st.write(f'**{group}:** {remaining} of {limit} seats available'
-                 + (' — Waitlist open' if remaining == 0 else ''))
-    st.caption('Each category has its own quota and waitlist. Seats are not automatically transferred between categories.')
+    accepting_confirmations = confirmed < CAPACITY and any(
+        group_counts.get((group, 'confirmed'), 0) < limit
+        for group, limit in SEGMENT_CAPACITY.items()
+    )
+    st.subheader('Registration')
+    if accepting_confirmations:
+        st.success('Registration is open.')
+    else:
+        st.info('Registration is currently accepting waitlist requests.')
+    st.caption(
+        'Spaces are limited. Registration is subject to availability and event allocation '
+        'guidelines. Your confirmation or waitlist status will be sent by email.'
+    )
     with st.form('registration'):
         name = st.text_input('Full name', max_chars=120)
         email = st.text_input('Email address', max_chars=254)
         nationality_group = st.selectbox(
-            'Nationality category', ['Indonesian', 'Non-Indonesian'],
-            index=None, placeholder='Select your nationality category')
+            'Participant background', ['Indonesian', 'Non-Indonesian'],
+            index=None, placeholder='Select the option that best describes you')
         kind = st.selectbox('Participant type', ['Student', 'Professional', 'Guest'])
         submitted = st.form_submit_button('Register for event', type='primary')
     if submitted:
@@ -382,7 +389,7 @@ if page == 'register':
         if not name or not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', email):
             st.error('Please enter your name and a valid email address.')
         elif nationality_group not in SEGMENT_CAPACITY:
-            st.error('Please select your nationality category.')
+            st.error('Please select your participant background.')
         else:
             result, error = register(name, email, kind, nationality_group)
             if error:
@@ -390,7 +397,8 @@ if page == 'register':
             else:
                 st.session_state['latest_ticket'] = result
                 sent, _ = send_email(result, result['status'])
-                st.success(f"Registration {result['status']}!")
+                st.success('Your registration is confirmed!' if result['status'] == 'confirmed'
+                           else 'Your registration has been added to the waitlist.')
                 if sent:
                     st.success('Confirmation email sent. Check your inbox and spam folder.')
                 else:
