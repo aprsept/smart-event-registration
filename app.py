@@ -432,13 +432,17 @@ def init_db():
             name TEXT NOT NULL, email TEXT NOT NULL UNIQUE COLLATE NOCASE,
             participant_type TEXT NOT NULL, token TEXT NOT NULL UNIQUE,
             status TEXT NOT NULL CHECK(status IN ('confirmed','waitlisted','cancelled')),
-            registered_at TEXT NOT NULL, checked_in_at TEXT, nationality_group TEXT, country TEXT)''')
+            registered_at TEXT NOT NULL, checked_in_at TEXT, nationality_group TEXT, country TEXT,
+            discovery_source TEXT, discovery_other TEXT, excitement TEXT)''')
         # Migrate existing installations without deleting registrations.
         columns = {row['name'] for row in con.execute('PRAGMA table_info(participants)')}
         if 'nationality_group' not in columns:
             con.execute('ALTER TABLE participants ADD COLUMN nationality_group TEXT')
         if 'country' not in columns:
             con.execute('ALTER TABLE participants ADD COLUMN country TEXT')
+        for column in ('discovery_source', 'discovery_other', 'excitement'):
+            if column not in columns:
+                con.execute(f'ALTER TABLE participants ADD COLUMN {column} TEXT')
         con.execute('''CREATE TABLE IF NOT EXISTS email_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             participant_id INTEGER NOT NULL, email_type TEXT NOT NULL,
@@ -463,9 +467,15 @@ def category_counts():
     return {(r['nationality_group'], r['status']): r['n'] for r in rows}
 
 
-def register(name, email, kind, country):
+def register(name, email, country, discovery_source, discovery_other, excitement):
     if country not in COUNTRIES:
         return None, 'Please select a valid country of citizenship.'
+    if discovery_source not in ('Indonesian friend', 'Social media', 'Just passing by', 'Other'):
+        return None, 'Please select how you heard about the event.'
+    if discovery_source == 'Other' and not discovery_other.strip():
+        return None, 'Please specify how you heard about the event.'
+    if not excitement:
+        return None, 'Please select at least one thing you are excited about.'
     nationality_group = 'Indonesian' if country == 'Indonesia' else 'Non-Indonesian'
     with connection() as con:
         # Lock before counting and inserting so simultaneous signups cannot overbook.
@@ -481,9 +491,12 @@ def register(name, email, kind, country):
                   and total_confirmed < CAPACITY else 'waitlisted')
         token = secrets.token_urlsafe(32)
         cursor = con.execute("""INSERT INTO participants
-            (name,email,participant_type,token,status,registered_at,nationality_group,country)
-            VALUES (?,?,?,?,?,?,?,?)""",
-            (name, email, kind, token, status, now(), nationality_group, country))
+            (name,email,participant_type,token,status,registered_at,nationality_group,country,
+             discovery_source,discovery_other,excitement)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            (name, email, 'Not collected', token, status, now(), nationality_group, country,
+             discovery_source, discovery_other.strip() if discovery_source == 'Other' else '',
+             ', '.join(excitement)))
         return dict(id=cursor.lastrowid, name=name, email=email,
                     status=status, token=token, nationality_group=nationality_group, country=country), None
 
@@ -638,7 +651,19 @@ if page == 'register':
         country = st.selectbox(
             'Country of citizenship', COUNTRIES,
             index=None, placeholder='Select your country')
-        kind = st.selectbox('Participant type', ['Student', 'Professional', 'Guest'])
+        discovery_source = st.selectbox(
+            'How did you hear about this event?',
+            ['Indonesian friend', 'Social media', 'Just passing by', 'Other'],
+            index=None, placeholder='Select an option')
+        discovery_other = st.text_input(
+            'If you selected Other above, please specify', max_chars=200
+        )
+        excitement = st.multiselect(
+            'What are you most excited about? (Select all that apply)',
+            ['Indonesian food', 'Music and performances', 'Cultural activities',
+             'The atmosphere and vibe', 'Meeting new people', 'Learning about Indonesia', 'Other'])
+        excitement_other = st.text_input(
+            'If you selected Other for excitement, please specify', max_chars=200)
         submitted = st.form_submit_button('Register for event', type='primary')
     if submitted:
         name, email = name.strip(), email.strip().lower()
@@ -646,8 +671,20 @@ if page == 'register':
             st.error('Please enter your name and a valid email address.')
         elif country not in COUNTRIES:
             st.error('Please select your country of citizenship.')
+        elif discovery_source is None:
+            st.error('Please tell us how you heard about this event.')
+        elif discovery_source == 'Other' and not discovery_other.strip():
+            st.error('Please specify how you heard about the event.')
+        elif not excitement:
+            st.error('Please select at least one thing you are excited about.')
+        elif 'Other' in excitement and not excitement_other.strip():
+            st.error('Please specify what else you are excited about.')
         else:
-            result, error = register(name, email, kind, country)
+            excitement_answers = [x for x in excitement if x != 'Other']
+            if 'Other' in excitement:
+                excitement_answers.append('Other: ' + excitement_other.strip())
+            result, error = register(name, email, country, discovery_source,
+                                     discovery_other, excitement_answers)
             if error:
                 st.warning(error)
             else:
@@ -701,7 +738,7 @@ else:
         st.session_state['admin_authenticated'] = False
         st.rerun()
     with connection() as con:
-        df = pd.read_sql_query('SELECT id,name,email,country,nationality_group,participant_type,status,registered_at,checked_in_at FROM participants ORDER BY id', con)
+        df = pd.read_sql_query('SELECT id,name,email,country,nationality_group,discovery_source,discovery_other,excitement,status,registered_at,checked_in_at FROM participants ORDER BY id', con)
         logs = pd.read_sql_query('SELECT id,participant_id,email_type,outcome,detail,created_at FROM email_log ORDER BY id DESC LIMIT 200', con)
     c1, c2, c3, c4 = st.columns(4)
     c1.metric('Total registrations', len(df))
