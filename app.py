@@ -25,9 +25,18 @@ def setting(key, default=None):
 
 
 EVENT_NAME = setting('EVENT_NAME', 'Indonesia Unplugged 2.0')
-EVENT_DATE = setting('EVENT_DATE', 'November 20, 2026 · 10:00 AM')
+EVENT_DATE = setting('EVENT_DATE', 'November 20, 2026')
 EVENT_VENUE = setting('EVENT_VENUE', 'Lerner Hall, Columbia University')
 CAPACITY = max(1, int(setting('EVENT_CAPACITY', '300')))
+INDONESIAN_CAPACITY = int(setting('INDONESIAN_CAPACITY', '120'))
+NON_INDONESIAN_CAPACITY = int(setting('NON_INDONESIAN_CAPACITY', '180'))
+SEGMENT_CAPACITY = {
+    'Indonesian': INDONESIAN_CAPACITY,
+    'Non-Indonesian': NON_INDONESIAN_CAPACITY,
+}
+if min(SEGMENT_CAPACITY.values()) < 0 or sum(SEGMENT_CAPACITY.values()) != CAPACITY:
+    st.error('Registration quota configuration is invalid: category capacities must be nonnegative and add up to the total capacity.')
+    st.stop()
 DB_PATH = setting('EVENT_DB_PATH', 'event.db')
 ADMIN_PASSWORD = setting('ADMIN_PASSWORD', '')
 GMAIL_ADDRESS = setting('GMAIL_ADDRESS', '')
@@ -170,7 +179,11 @@ def init_db():
             name TEXT NOT NULL, email TEXT NOT NULL UNIQUE COLLATE NOCASE,
             participant_type TEXT NOT NULL, token TEXT NOT NULL UNIQUE,
             status TEXT NOT NULL CHECK(status IN ('confirmed','waitlisted','cancelled')),
-            registered_at TEXT NOT NULL, checked_in_at TEXT)''')
+            registered_at TEXT NOT NULL, checked_in_at TEXT, nationality_group TEXT)''')
+        # Migrate existing installations without deleting registrations.
+        columns = {row['name'] for row in con.execute('PRAGMA table_info(participants)')}
+        if 'nationality_group' not in columns:
+            con.execute('ALTER TABLE participants ADD COLUMN nationality_group TEXT')
         con.execute('''CREATE TABLE IF NOT EXISTS email_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             participant_id INTEGER NOT NULL, email_type TEXT NOT NULL,
@@ -183,21 +196,40 @@ def now():
 
 def counts():
     with connection() as con:
-        return {r['status']: r['n'] for r in con.execute('SELECT status, COUNT(*) n FROM participants GROUP BY status')}
+        return {r['status']: r['n'] for r in con.execute(
+            'SELECT status, COUNT(*) n FROM participants GROUP BY status')}
 
 
-def register(name, email, kind):
+def category_counts():
     with connection() as con:
+        rows = con.execute("""SELECT nationality_group, status, COUNT(*) AS n
+                              FROM participants
+                              GROUP BY nationality_group, status""").fetchall()
+    return {(r['nationality_group'], r['status']): r['n'] for r in rows}
+
+
+def register(name, email, kind, nationality_group):
+    if nationality_group not in SEGMENT_CAPACITY:
+        return None, 'Please choose a valid participant category.'
+    with connection() as con:
+        # Lock before counting and inserting so simultaneous signups cannot overbook.
         con.execute('BEGIN IMMEDIATE')
         if con.execute('SELECT 1 FROM participants WHERE email=?', (email,)).fetchone():
             return None, 'This email is already registered. Contact the committee for assistance.'
-        n = con.execute("SELECT COUNT(*) FROM participants WHERE status='confirmed'").fetchone()[0]
-        status = 'confirmed' if n < CAPACITY else 'waitlisted'
+        confirmed_in_group = con.execute("""SELECT COUNT(*) FROM participants
+            WHERE status='confirmed' AND nationality_group=?""",
+            (nationality_group,)).fetchone()[0]
+        # Legacy registrations without a category are counted against total capacity.
+        total_confirmed = con.execute("SELECT COUNT(*) FROM participants WHERE status='confirmed'").fetchone()[0]
+        status = ('confirmed' if confirmed_in_group < SEGMENT_CAPACITY[nationality_group]
+                  and total_confirmed < CAPACITY else 'waitlisted')
         token = secrets.token_urlsafe(32)
-        cursor = con.execute('''INSERT INTO participants
-            (name,email,participant_type,token,status,registered_at)
-            VALUES (?,?,?,?,?,?)''', (name, email, kind, token, status, now()))
-        return dict(id=cursor.lastrowid, name=name, email=email, status=status, token=token), None
+        cursor = con.execute("""INSERT INTO participants
+            (name,email,participant_type,token,status,registered_at,nationality_group)
+            VALUES (?,?,?,?,?,?,?)""",
+            (name, email, kind, token, status, now(), nationality_group))
+        return dict(id=cursor.lastrowid, name=name, email=email,
+                    status=status, token=token, nationality_group=nationality_group), None
 
 
 def ticket_png(token):
@@ -260,10 +292,21 @@ def cancel(token):
             return 'Already checked in; contact the committee to cancel.', None
         con.execute("UPDATE participants SET status='cancelled' WHERE id=?", (p['id'],))
         if p['status'] == 'confirmed':
-            nxt = con.execute("SELECT * FROM participants WHERE status='waitlisted' ORDER BY registered_at,id LIMIT 1").fetchone()
-            if nxt:
-                con.execute("UPDATE participants SET status='confirmed' WHERE id=?", (nxt['id'],))
-                promoted = dict(nxt)
+            # Fill the vacated seat only from the same category waitlist.
+            # For older records with no category, do not auto-promote someone
+            # whose segment allocation is unknown.
+            group = p['nationality_group']
+            if group in SEGMENT_CAPACITY:
+                confirmed_in_group = con.execute("""SELECT COUNT(*) FROM participants
+                    WHERE status='confirmed' AND nationality_group=?""", (group,)).fetchone()[0]
+                total_confirmed = con.execute("SELECT COUNT(*) FROM participants WHERE status='confirmed'").fetchone()[0]
+                if confirmed_in_group < SEGMENT_CAPACITY[group] and total_confirmed < CAPACITY:
+                    nxt = con.execute("""SELECT * FROM participants
+                        WHERE status='waitlisted' AND nationality_group=?
+                        ORDER BY registered_at,id LIMIT 1""", (group,)).fetchone()
+                    if nxt:
+                        con.execute("UPDATE participants SET status='confirmed' WHERE id=?", (nxt['id'],))
+                        promoted = dict(nxt)
     return 'Registration cancelled.', promoted
 
 
@@ -318,18 +361,30 @@ if page == 'register':
     status_counts = counts()
     confirmed = status_counts.get('confirmed', 0)
     st.progress(min(confirmed / CAPACITY, 1.0), text=f'{confirmed}/{CAPACITY} confirmed seats')
-    st.info(f'{max(0, CAPACITY-confirmed)} seats available. If full, you will join the waitlist.')
+    group_counts = category_counts()
+    st.subheader('Registration availability')
+    for group, limit in SEGMENT_CAPACITY.items():
+        taken = group_counts.get((group, 'confirmed'), 0)
+        remaining = max(0, min(limit - taken, CAPACITY - confirmed))
+        st.write(f'**{group}:** {remaining} of {limit} seats available'
+                 + (' — Waitlist open' if remaining == 0 else ''))
+    st.caption('Each category has its own quota and waitlist. Seats are not automatically transferred between categories.')
     with st.form('registration'):
         name = st.text_input('Full name', max_chars=120)
         email = st.text_input('Email address', max_chars=254)
-        kind = st.selectbox('Participant category', ['Student', 'Professional', 'Guest'])
+        nationality_group = st.selectbox(
+            'Nationality category', ['Indonesian', 'Non-Indonesian'],
+            index=None, placeholder='Select your nationality category')
+        kind = st.selectbox('Participant type', ['Student', 'Professional', 'Guest'])
         submitted = st.form_submit_button('Register for event', type='primary')
     if submitted:
         name, email = name.strip(), email.strip().lower()
         if not name or not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', email):
             st.error('Please enter your name and a valid email address.')
+        elif nationality_group not in SEGMENT_CAPACITY:
+            st.error('Please select your nationality category.')
         else:
-            result, error = register(name, email, kind)
+            result, error = register(name, email, kind, nationality_group)
             if error:
                 st.warning(error)
             else:
@@ -382,13 +437,25 @@ else:
         st.session_state['admin_authenticated'] = False
         st.rerun()
     with connection() as con:
-        df = pd.read_sql_query('SELECT id,name,email,participant_type,status,registered_at,checked_in_at FROM participants ORDER BY id', con)
+        df = pd.read_sql_query('SELECT id,name,email,nationality_group,participant_type,status,registered_at,checked_in_at FROM participants ORDER BY id', con)
         logs = pd.read_sql_query('SELECT id,participant_id,email_type,outcome,detail,created_at FROM email_log ORDER BY id DESC LIMIT 200', con)
     c1, c2, c3, c4 = st.columns(4)
     c1.metric('Total registrations', len(df))
     c2.metric('Confirmed', int((df.status == 'confirmed').sum()) if not df.empty else 0)
     c3.metric('Checked in', int(df.checked_in_at.notna().sum()) if not df.empty else 0)
     c4.metric('Waitlisted', int((df.status == 'waitlisted').sum()) if not df.empty else 0)
+    st.subheader('Confirmed participants by nationality category')
+    for group, limit in SEGMENT_CAPACITY.items():
+        n = int(((df.nationality_group == group) & (df.status == 'confirmed')).sum()) if not df.empty else 0
+        w = int(((df.nationality_group == group) & (df.status == 'waitlisted')).sum()) if not df.empty else 0
+        st.write(f'**{group}:** {n}/{limit} confirmed · {w} waitlisted')
+        if limit:
+            st.progress(min(n / limit, 1.0))
+    legacy = int(((df.nationality_group.isna()) & (df.status == 'confirmed')).sum()) if not df.empty else 0
+    if legacy:
+        st.warning(f'{legacy} existing confirmed registrations have no nationality category. '
+                   'They count toward the overall 300-person limit; assign their categories '
+                   'before relying on category quotas.')
     tab_scan, tab_people, tab_email = st.tabs(['📷 Check-in', '👥 Participants', '✉️ Email delivery'])
     with tab_scan:
         st.write('Use your phone or laptop camera to capture a participant QR ticket.')
