@@ -37,6 +37,259 @@ SEGMENT_CAPACITY = {
 if min(SEGMENT_CAPACITY.values()) < 0 or sum(SEGMENT_CAPACITY.values()) != CAPACITY:
     st.error('Registration quota configuration is invalid: category capacities must be nonnegative and add up to the total capacity.')
     st.stop()
+COUNTRIES = [
+    'Afghanistan',
+    'Albania',
+    'Algeria',
+    'American Samoa',
+    'Andorra',
+    'Angola',
+    'Anguilla',
+    'Antarctica',
+    'Antigua and Barbuda',
+    'Argentina',
+    'Armenia',
+    'Aruba',
+    'Australia',
+    'Austria',
+    'Azerbaijan',
+    'Bahamas',
+    'Bahrain',
+    'Bangladesh',
+    'Barbados',
+    'Belarus',
+    'Belgium',
+    'Belize',
+    'Benin',
+    'Bermuda',
+    'Bhutan',
+    'Bolivia',
+    'Bonaire, Sint Eustatius and Saba',
+    'Bosnia and Herzegovina',
+    'Botswana',
+    'Bouvet Island',
+    'Brazil',
+    'British Indian Ocean Territory',
+    'Brunei',
+    'Bulgaria',
+    'Burkina Faso',
+    'Burundi',
+    'Cabo Verde',
+    'Cambodia',
+    'Cameroon',
+    'Canada',
+    'Cayman Islands',
+    'Central African Republic',
+    'Chad',
+    'Chile',
+    'China',
+    'Christmas Island',
+    'Cocos (Keeling) Islands',
+    'Colombia',
+    'Comoros',
+    'Congo',
+    'Cook Islands',
+    'Costa Rica',
+    'Croatia',
+    'Cuba',
+    'Curaçao',
+    'Cyprus',
+    'Czechia',
+    "Côte d'Ivoire",
+    'Democratic Republic of the Congo',
+    'Denmark',
+    'Djibouti',
+    'Dominica',
+    'Dominican Republic',
+    'Ecuador',
+    'Egypt',
+    'El Salvador',
+    'Equatorial Guinea',
+    'Eritrea',
+    'Estonia',
+    'Eswatini',
+    'Ethiopia',
+    'Falkland Islands (Malvinas)',
+    'Faroe Islands',
+    'Fiji',
+    'Finland',
+    'France',
+    'French Guiana',
+    'French Polynesia',
+    'French Southern Territories',
+    'Gabon',
+    'Gambia',
+    'Georgia',
+    'Germany',
+    'Ghana',
+    'Gibraltar',
+    'Greece',
+    'Greenland',
+    'Grenada',
+    'Guadeloupe',
+    'Guam',
+    'Guatemala',
+    'Guernsey',
+    'Guinea',
+    'Guinea-Bissau',
+    'Guyana',
+    'Haiti',
+    'Heard Island and McDonald Islands',
+    'Holy See (Vatican City State)',
+    'Honduras',
+    'Hong Kong',
+    'Hungary',
+    'Iceland',
+    'India',
+    'Indonesia',
+    'Iran',
+    'Iraq',
+    'Ireland',
+    'Isle of Man',
+    'Israel',
+    'Italy',
+    'Jamaica',
+    'Japan',
+    'Jersey',
+    'Jordan',
+    'Kazakhstan',
+    'Kenya',
+    'Kiribati',
+    'Kosovo',
+    'Kuwait',
+    'Kyrgyzstan',
+    'Laos',
+    'Latvia',
+    'Lebanon',
+    'Lesotho',
+    'Liberia',
+    'Libya',
+    'Liechtenstein',
+    'Lithuania',
+    'Luxembourg',
+    'Macao',
+    'Madagascar',
+    'Malawi',
+    'Malaysia',
+    'Maldives',
+    'Mali',
+    'Malta',
+    'Marshall Islands',
+    'Martinique',
+    'Mauritania',
+    'Mauritius',
+    'Mayotte',
+    'Mexico',
+    'Micronesia, Federated States of',
+    'Moldova',
+    'Monaco',
+    'Mongolia',
+    'Montenegro',
+    'Montserrat',
+    'Morocco',
+    'Mozambique',
+    'Myanmar',
+    'Namibia',
+    'Nauru',
+    'Nepal',
+    'Netherlands',
+    'New Caledonia',
+    'New Zealand',
+    'Nicaragua',
+    'Niger',
+    'Nigeria',
+    'Niue',
+    'Norfolk Island',
+    'North Korea',
+    'North Macedonia',
+    'Northern Mariana Islands',
+    'Norway',
+    'Oman',
+    'Pakistan',
+    'Palau',
+    'Palestine',
+    'Panama',
+    'Papua New Guinea',
+    'Paraguay',
+    'Peru',
+    'Philippines',
+    'Pitcairn',
+    'Poland',
+    'Portugal',
+    'Puerto Rico',
+    'Qatar',
+    'Romania',
+    'Russia',
+    'Rwanda',
+    'Réunion',
+    'Saint Barthélemy',
+    'Saint Helena, Ascension and Tristan da Cunha',
+    'Saint Kitts and Nevis',
+    'Saint Lucia',
+    'Saint Martin (French part)',
+    'Saint Pierre and Miquelon',
+    'Saint Vincent and the Grenadines',
+    'Samoa',
+    'San Marino',
+    'Sao Tome and Principe',
+    'Saudi Arabia',
+    'Senegal',
+    'Serbia',
+    'Seychelles',
+    'Sierra Leone',
+    'Singapore',
+    'Sint Maarten (Dutch part)',
+    'Slovakia',
+    'Slovenia',
+    'Solomon Islands',
+    'Somalia',
+    'South Africa',
+    'South Georgia and the South Sandwich Islands',
+    'South Korea',
+    'South Sudan',
+    'Spain',
+    'Sri Lanka',
+    'Sudan',
+    'Suriname',
+    'Svalbard and Jan Mayen',
+    'Sweden',
+    'Switzerland',
+    'Syria',
+    'Taiwan',
+    'Tajikistan',
+    'Tanzania',
+    'Thailand',
+    'Timor-Leste',
+    'Togo',
+    'Tokelau',
+    'Tonga',
+    'Trinidad and Tobago',
+    'Tunisia',
+    'Turkey',
+    'Turkmenistan',
+    'Turks and Caicos Islands',
+    'Tuvalu',
+    'Uganda',
+    'Ukraine',
+    'United Arab Emirates',
+    'United Kingdom',
+    'United States',
+    'United States Minor Outlying Islands',
+    'Uruguay',
+    'Uzbekistan',
+    'Vanuatu',
+    'Venezuela',
+    'Vietnam',
+    'Virgin Islands, British',
+    'Virgin Islands, U.S.',
+    'Wallis and Futuna',
+    'Western Sahara',
+    'Yemen',
+    'Zambia',
+    'Zimbabwe',
+    'Åland Islands',
+]
+
 DB_PATH = setting('EVENT_DB_PATH', 'event.db')
 ADMIN_PASSWORD = setting('ADMIN_PASSWORD', '')
 GMAIL_ADDRESS = setting('GMAIL_ADDRESS', '')
@@ -179,11 +432,13 @@ def init_db():
             name TEXT NOT NULL, email TEXT NOT NULL UNIQUE COLLATE NOCASE,
             participant_type TEXT NOT NULL, token TEXT NOT NULL UNIQUE,
             status TEXT NOT NULL CHECK(status IN ('confirmed','waitlisted','cancelled')),
-            registered_at TEXT NOT NULL, checked_in_at TEXT, nationality_group TEXT)''')
+            registered_at TEXT NOT NULL, checked_in_at TEXT, nationality_group TEXT, country TEXT)''')
         # Migrate existing installations without deleting registrations.
         columns = {row['name'] for row in con.execute('PRAGMA table_info(participants)')}
         if 'nationality_group' not in columns:
             con.execute('ALTER TABLE participants ADD COLUMN nationality_group TEXT')
+        if 'country' not in columns:
+            con.execute('ALTER TABLE participants ADD COLUMN country TEXT')
         con.execute('''CREATE TABLE IF NOT EXISTS email_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             participant_id INTEGER NOT NULL, email_type TEXT NOT NULL,
@@ -208,9 +463,10 @@ def category_counts():
     return {(r['nationality_group'], r['status']): r['n'] for r in rows}
 
 
-def register(name, email, kind, nationality_group):
-    if nationality_group not in SEGMENT_CAPACITY:
-        return None, 'Please choose a valid participant category.'
+def register(name, email, kind, country):
+    if country not in COUNTRIES:
+        return None, 'Please select a valid country of citizenship.'
+    nationality_group = 'Indonesian' if country == 'Indonesia' else 'Non-Indonesian'
     with connection() as con:
         # Lock before counting and inserting so simultaneous signups cannot overbook.
         con.execute('BEGIN IMMEDIATE')
@@ -225,11 +481,11 @@ def register(name, email, kind, nationality_group):
                   and total_confirmed < CAPACITY else 'waitlisted')
         token = secrets.token_urlsafe(32)
         cursor = con.execute("""INSERT INTO participants
-            (name,email,participant_type,token,status,registered_at,nationality_group)
-            VALUES (?,?,?,?,?,?,?)""",
-            (name, email, kind, token, status, now(), nationality_group))
+            (name,email,participant_type,token,status,registered_at,nationality_group,country)
+            VALUES (?,?,?,?,?,?,?,?)""",
+            (name, email, kind, token, status, now(), nationality_group, country))
         return dict(id=cursor.lastrowid, name=name, email=email,
-                    status=status, token=token, nationality_group=nationality_group), None
+                    status=status, token=token, nationality_group=nationality_group, country=country), None
 
 
 def ticket_png(token):
@@ -379,19 +635,19 @@ if page == 'register':
     with st.form('registration'):
         name = st.text_input('Full name', max_chars=120)
         email = st.text_input('Email address', max_chars=254)
-        nationality_group = st.selectbox(
-            'Participant background', ['Indonesian', 'Non-Indonesian'],
-            index=None, placeholder='Select the option that best describes you')
+        country = st.selectbox(
+            'Country of citizenship', COUNTRIES,
+            index=None, placeholder='Select your country')
         kind = st.selectbox('Participant type', ['Student', 'Professional', 'Guest'])
         submitted = st.form_submit_button('Register for event', type='primary')
     if submitted:
         name, email = name.strip(), email.strip().lower()
         if not name or not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', email):
             st.error('Please enter your name and a valid email address.')
-        elif nationality_group not in SEGMENT_CAPACITY:
-            st.error('Please select your participant background.')
+        elif country not in COUNTRIES:
+            st.error('Please select your country of citizenship.')
         else:
-            result, error = register(name, email, kind, nationality_group)
+            result, error = register(name, email, kind, country)
             if error:
                 st.warning(error)
             else:
@@ -445,7 +701,7 @@ else:
         st.session_state['admin_authenticated'] = False
         st.rerun()
     with connection() as con:
-        df = pd.read_sql_query('SELECT id,name,email,nationality_group,participant_type,status,registered_at,checked_in_at FROM participants ORDER BY id', con)
+        df = pd.read_sql_query('SELECT id,name,email,country,nationality_group,participant_type,status,registered_at,checked_in_at FROM participants ORDER BY id', con)
         logs = pd.read_sql_query('SELECT id,participant_id,email_type,outcome,detail,created_at FROM email_log ORDER BY id DESC LIMIT 200', con)
     c1, c2, c3, c4 = st.columns(4)
     c1.metric('Total registrations', len(df))
